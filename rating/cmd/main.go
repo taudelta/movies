@@ -1,7 +1,7 @@
 package main
 
 import (
-	"movix/internal/rating/microservice"
+	"movix/rating/internal/microservice"
 )
 
 var Version string = "undefined"

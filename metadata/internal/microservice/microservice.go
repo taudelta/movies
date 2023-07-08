@@ -7,18 +7,29 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 
-	"movix/internal/app/metadata/config"
+	"movix/metadata/internal/config"
+	"movix/metadata/internal/controller"
+	"movix/metadata/internal/handler"
+	"movix/metadata/internal/repository/memory"
 )
 
 func Start(version, gitCommit string) {
 	var cfg config.Config
-	if err := envconfig.Parse("", &cfg); err != nil {
+	if err := envconfig.Process("", &cfg); err != nil {
 		log.Panic(err)
 	}
+
+	repo := memory.New()
+
+	ctrl := controller.New(repo)
+
+	handler := handler.NewHandler(ctrl)
 
 	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("metadata microservice: %s, commit: %s", version, gitCommit)))
 	})
+
+	http.HandleFunc("/metadata", handler.GetMetadata)
 
 	http.ListenAndServe(cfg.AppAddr, nil)
 }

@@ -13,7 +13,7 @@ type Repository struct {
 	metadata map[string]*model.Metadata
 }
 
-func NewRepository() *Repository {
+func New() *Repository {
 	return &Repository{
 		mut:      &sync.RWMutex{},
 		metadata: make(map[string]*model.Metadata),
@@ -30,8 +30,9 @@ func (r *Repository) Get(_ context.Context, id string) (*model.Metadata, error) 
 	return m, nil
 }
 
-func (r *Repository) Put(_ context.Context, id string, metadata *model.Metadata) {
+func (r *Repository) Put(_ context.Context, id string, metadata *model.Metadata) error {
 	r.mut.Lock()
 	r.metadata[id] = metadata
 	r.mut.Unlock()
+	return nil
 }
