@@ -5,23 +5,34 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 
 	"movix/metadata/pkg/model"
+	"movix/pkg/discovery"
 )
 
 var ErrNotFound = errors.New("not found")
 
 type Gateway struct {
-	addr string
+	registry discovery.Registry
 }
 
-func New(addr string) *Gateway {
-	return &Gateway{addr: addr}
+func New(registry discovery.Registry) *Gateway {
+	return &Gateway{
+		registry: registry,
+	}
 }
 
 func (g *Gateway) Get(ctx context.Context, id string) (*model.Metadata, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", g.addr+"/metadata", nil)
+	addrs, err := g.registry.ServiceAddresses(ctx, "metadata")
+	if err != nil {
+		return nil, err
+	}
+
+	endpointUrl := "http://" + addrs[rand.Intn(len(addrs))] + "/metadata"
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpointUrl, nil)
 	if err != nil {
 		return nil, err
 	}

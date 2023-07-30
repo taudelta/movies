@@ -1,9 +1,11 @@
 package microservice
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 
@@ -12,7 +14,11 @@ import (
 	metadatagateway "movix/movies/internal/gateway/metadata"
 	ratinggateway "movix/movies/internal/gateway/rating"
 	httphandler "movix/movies/internal/handler"
+	"movix/pkg/discovery"
+	"movix/pkg/discovery/consul"
 )
+
+const serviceName = "metadata"
 
 func Start(version, gitCommit string) {
 	var cfg config.Config
@@ -20,8 +26,35 @@ func Start(version, gitCommit string) {
 		log.Panic(err)
 	}
 
-	metadataGateway := metadatagateway.New("localhost:8081")
-	ratingGateway := ratinggateway.New("localhost:8082")
+	registry, err := consul.NewRegistry("localhost:8500")
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+	instanceID := discovery.GenerateInstanceID(serviceName)
+
+	if err := registry.Register(ctx, instanceID, serviceName, cfg.AppAddr); err != nil {
+		panic(err)
+	}
+
+	go func() {
+		for {
+			if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
+				log.Println("Failed to report healthy state: ", err)
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	defer func() {
+		if err := registry.Deregister(ctx, instanceID, serviceName); err != nil {
+			log.Println("Failed to deregister: ", err)
+		}
+	}()
+
+	metadataGateway := metadatagateway.New(registry)
+	ratingGateway := ratinggateway.New(registry)
 
 	ctrl := movie.New(ratingGateway, metadataGateway)
 	h := httphandler.New(ctrl)
