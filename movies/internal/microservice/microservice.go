@@ -26,44 +26,46 @@ func Start(version, gitCommit string) {
 		log.Panic(err)
 	}
 
-	registry, err := consul.NewRegistry("localhost:8500")
-	if err != nil {
-		panic(err)
-	}
+	var registry *consul.Registry
+	var instanceID string
 
-	ctx := context.Background()
-	instanceID := discovery.GenerateInstanceID(serviceName)
+	if cfg.Consul.Enabled {
+		var err error
+		registry, err = consul.NewRegistry(cfg.Consul.Addr)
+		if err != nil {
+			panic(err)
+		}
 
-	if err := registry.Register(ctx, instanceID, serviceName, cfg.AppAddr); err != nil {
-		panic(err)
-	}
+		ctx := context.Background()
+		instanceID = discovery.GenerateInstanceID(serviceName)
 
-	go func() {
-		for {
-			if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
-				log.Println("Failed to report healthy state: ", err)
+		if err := registry.Register(ctx, instanceID, serviceName, cfg.AppAddr); err != nil {
+			panic(err)
+		}
+
+		go func() {
+			for {
+				if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
+					log.Println("Failed to report healthy state: ", err)
+				}
+				time.Sleep(1 * time.Second)
 			}
-			time.Sleep(1 * time.Second)
-		}
-	}()
+		}()
 
-	defer func() {
-		if err := registry.Deregister(ctx, instanceID, serviceName); err != nil {
-			log.Println("Failed to deregister: ", err)
-		}
-	}()
+		defer func() {
+			if err := registry.Deregister(ctx, instanceID, serviceName); err != nil {
+				log.Println("Failed to deregister: ", err)
+			}
+		}()
+	}
 
-	metadataGateway := metadatagateway.New(registry)
-	ratingGateway := ratinggateway.New(registry)
+	metadataGateway := metadatagateway.New(registry, cfg.MetadataAddrs)
+	ratingGateway := ratinggateway.New(registry, cfg.RatingAddrs)
 
 	ctrl := movie.New(ratingGateway, metadataGateway)
 	h := httphandler.New(ctrl)
 
 	http.Handle("/movie", http.HandlerFunc(h.GetMovieDetails))
-
-	if err := http.ListenAndServe(":8083", nil); err != nil {
-		panic(err)
-	}
 
 	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("gateway microservice: %s, commit: %s", version, gitCommit)))

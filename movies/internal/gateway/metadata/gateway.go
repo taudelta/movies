@@ -15,11 +15,13 @@ import (
 var ErrNotFound = errors.New("not found")
 
 type Gateway struct {
+	addrs    []string
 	registry discovery.Registry
 }
 
-func New(registry discovery.Registry) *Gateway {
+func New(registry discovery.Registry, addrs []string) *Gateway {
 	return &Gateway{
+		addrs:    addrs,
 		registry: registry,
 	}
 }

@@ -33,7 +33,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == http.MethodGet {
+	if r.Method == http.MethodGet || r.Method == http.MethodPost {
 		rating, err := h.ctrl.GetAggregatedRating(r.Context(), model.RecordType(recordType), model.RecordID(id))
 		if err != nil {
 			if errors.Is(err, controller.ErrNotFound) {
@@ -54,6 +54,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
 		err = h.ctrl.Put(r.Context(), model.RecordType(recordType), model.RecordID(id),
 			model.Rating{
 				UserID: userID,
@@ -71,5 +72,4 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-
 }

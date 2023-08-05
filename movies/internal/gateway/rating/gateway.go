@@ -15,19 +15,26 @@ import (
 var ErrNotFound = errors.New("not found")
 
 type Gateway struct {
+	addrs    []string
 	registry discovery.Registry
 }
 
-func New(registry discovery.Registry) *Gateway {
+func New(registry discovery.Registry, addrs []string) *Gateway {
 	return &Gateway{
+		addrs:    addrs,
 		registry: registry,
 	}
 }
 
 func (g *Gateway) GetAggregatedRating(ctx context.Context, recordID model.RecordID, recordType model.RecordType) (float64, error) {
-	addrs, err := g.registry.ServiceAddresses(ctx, "metadata")
-	if err != nil {
-		return 0, err
+	var addrs []string
+	var err error
+
+	if len(g.addrs) == 0 {
+		addrs, err = g.registry.ServiceAddresses(ctx, "metadata")
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	endpointUrl := "http://" + addrs[rand.Intn(len(addrs))] + "/rating"
@@ -66,9 +73,14 @@ func (g *Gateway) GetAggregatedRating(ctx context.Context, recordID model.Record
 }
 
 func (g *Gateway) PutRating(ctx context.Context, recordID model.RecordID, recordType model.RecordType, rating *model.Rating) error {
-	addrs, err := g.registry.ServiceAddresses(ctx, "metadata")
-	if err != nil {
-		return err
+	var addrs []string
+	var err error
+
+	if len(g.addrs) == 0 {
+		addrs, err = g.registry.ServiceAddresses(ctx, "metadata")
+		if err != nil {
+			return err
+		}
 	}
 
 	endpointUrl := "http://" + addrs[rand.Intn(len(addrs))] + "/rating"

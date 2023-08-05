@@ -35,3 +35,8 @@ func (c *Controller) Get(ctx context.Context, id string) (*model.Metadata, error
 
 	return meta, nil
 }
+
+func (c *Controller) Put(ctx context.Context, id string, meta *model.Metadata) error {
+	err := c.repo.Put(ctx, id, meta)
+	return err
+}

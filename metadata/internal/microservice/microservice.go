@@ -25,32 +25,37 @@ func Start(version, gitCommit string) {
 		log.Panic(err)
 	}
 
-	registry, err := consul.NewRegistry("localhost:8500")
-	if err != nil {
-		panic(err)
-	}
+	var instanceID string
+	var registry *consul.Registry
+	if cfg.Consul.Enabled {
+		var err error
+		registry, err = consul.NewRegistry(cfg.Consul.Addr)
+		if err != nil {
+			panic(err)
+		}
 
-	ctx := context.Background()
-	instanceID := discovery.GenerateInstanceID(serviceName)
+		ctx := context.Background()
+		instanceID = discovery.GenerateInstanceID(serviceName)
 
-	if err := registry.Register(ctx, instanceID, serviceName, cfg.AppAddr); err != nil {
-		panic(err)
-	}
+		if err := registry.Register(ctx, instanceID, serviceName, cfg.AppAddr); err != nil {
+			panic(err)
+		}
 
-	go func() {
-		for {
-			if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
-				log.Println("Failed to report healthy state: ", err)
+		go func() {
+			for {
+				if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
+					log.Println("Failed to report healthy state: ", err)
+				}
+				time.Sleep(1 * time.Second)
 			}
-			time.Sleep(1 * time.Second)
-		}
-	}()
+		}()
 
-	defer func() {
-		if err := registry.Deregister(ctx, instanceID, serviceName); err != nil {
-			log.Println("Failed to deregister: ", err)
-		}
-	}()
+		defer func() {
+			if err := registry.Deregister(ctx, instanceID, serviceName); err != nil {
+				log.Println("Failed to deregister: ", err)
+			}
+		}()
+	}
 
 	repo := memory.New()
 	ctrl := controller.New(repo)

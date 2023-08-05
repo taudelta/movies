@@ -3,8 +3,11 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"movix/metadata/internal/controller"
+	"log"
 	"net/http"
+
+	"movix/metadata/internal/controller"
+	"movix/metadata/pkg/model"
 )
 
 type Handler struct {
@@ -18,6 +21,11 @@ func NewHandler(ctrl *controller.Controller) *Handler {
 }
 
 func (h *Handler) GetMetadata(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "PUT" {
+		h.PutMetadata(w, r)
+		return
+	}
+
 	id := r.FormValue("id")
 	if id == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -31,6 +39,24 @@ func (h *Handler) GetMetadata(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(metadata)
+}
+
+func (h *Handler) PutMetadata(w http.ResponseWriter, r *http.Request) {
+	var metadata model.Metadata
+
+	if err := json.NewDecoder(r.Body).Decode(&metadata); err != nil {
+		log.Println("put metadata decode error:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.ctrl.Put(r.Context(), metadata.ID, &metadata); err != nil {
+		log.Println("put metadata error:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
