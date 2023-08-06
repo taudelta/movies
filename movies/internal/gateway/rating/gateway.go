@@ -3,16 +3,15 @@ package rating
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 
+	"movix/movies/internal/gateway"
 	"movix/pkg/discovery"
 	"movix/rating/pkg/model"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Gateway struct {
 	addrs    []string
@@ -35,9 +34,14 @@ func (g *Gateway) GetAggregatedRating(ctx context.Context, recordID model.Record
 		if err != nil {
 			return 0, err
 		}
+	} else {
+		log.Println("no service discovery, use fixed addresses", g.addrs)
+		addrs = g.addrs
 	}
 
 	endpointUrl := "http://" + addrs[rand.Intn(len(addrs))] + "/rating"
+
+	log.Println("send request to rating service", endpointUrl)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", endpointUrl, nil)
 	if err != nil {
@@ -59,8 +63,10 @@ func (g *Gateway) GetAggregatedRating(ctx context.Context, recordID model.Record
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return 0, ErrNotFound
+		log.Println("rating not found for", recordType, "with id", recordID)
+		return 0, gateway.ErrNotFound
 	} else if resp.StatusCode/100 != 2 {
+		log.Println("rating service error: ", resp.StatusCode)
 		return 0, fmt.Errorf("non-2xx response: %v", resp)
 	}
 
@@ -81,6 +87,9 @@ func (g *Gateway) PutRating(ctx context.Context, recordID model.RecordID, record
 		if err != nil {
 			return err
 		}
+	} else {
+		log.Println("no service discovery, use fixed addresses", g.addrs)
+		addrs = g.addrs
 	}
 
 	endpointUrl := "http://" + addrs[rand.Intn(len(addrs))] + "/rating"

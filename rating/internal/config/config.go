@@ -6,6 +6,6 @@ type ConsulConfig struct {
 }
 
 type Config struct {
-	AppAddr string       `envconfig:"APP_ADDR" default:":8081"`
+	AppAddr string       `envconfig:"APP_ADDR" default:":8082"`
 	Consul  ConsulConfig `envconfig:"CONSUL"`
 }

@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"log"
 	"movix/movies/pkg/model"
 
 	metadatamodel "movix/metadata/pkg/model"
@@ -28,7 +29,10 @@ type metadataGateway interface {
 }
 
 func New(ratingGateway ratingGateway, metadataGateway metadataGateway) *Controller {
-	return &Controller{ratingGateway, metadataGateway}
+	return &Controller{
+		ratingGateway,
+		metadataGateway,
+	}
 }
 
 func (c *Controller) Get(ctx context.Context, id string) (*model.MovieDetails, error) {
@@ -39,15 +43,19 @@ func (c *Controller) Get(ctx context.Context, id string) (*model.MovieDetails, e
 		return nil, err
 	}
 
-	details := &model.MovieDetails{Metadata: *metadata}
+	details := &model.MovieDetails{
+		Metadata: *metadata,
+	}
+
 	rating, err := c.ratingGateway.GetAggregatedRating(ctx, ratingmodel.RecordID(id), ratingmodel.RecordTypeMovie)
-	if err != nil && !errors.Is(err, gateway.ErrNotFound) {
+	if err != nil && errors.Is(err, gateway.ErrNotFound) {
 		// Just proceed in this case, it's ok not to have ratings yet.
+		log.Println("rating not found for movie with id", ratingmodel.RecordID(id))
 	} else if err != nil {
 		return nil, err
-	} else {
-		details.Rating = &rating
 	}
+
+	details.Rating = &rating
 
 	return details, nil
 }

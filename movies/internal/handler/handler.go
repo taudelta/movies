@@ -21,14 +21,14 @@ func New(ctrl *movie.Controller) *Handler {
 
 // GetMovieDetails handles GET /movie requests.
 func (h *Handler) GetMovieDetails(w http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+	id := req.URL.Query().Get("id")
 	details, err := h.ctrl.Get(req.Context(), id)
 
 	if err != nil && errors.Is(err, movie.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		log.Printf("Repository get error: %v\n", err)
+		log.Printf("movie details get error: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

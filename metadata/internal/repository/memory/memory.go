@@ -22,11 +22,11 @@ func New() *Repository {
 
 func (r *Repository) Get(_ context.Context, id string) (*model.Metadata, error) {
 	r.mut.RLock()
+	defer r.mut.RUnlock()
 	m, ok := r.metadata[id]
 	if !ok {
 		return nil, repository.ErrNotFound
 	}
-	r.mut.RUnlock()
 	return m, nil
 }
 

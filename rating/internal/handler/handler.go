@@ -21,19 +21,18 @@ func NewHandler(ctrl *controller.Controller) *Handler {
 }
 
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
-	id := r.FormValue("id")
-	if id == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	recordType := r.FormValue("type")
-	if recordType == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	if r.Method == http.MethodGet || r.Method == http.MethodPost {
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		recordType := r.URL.Query().Get("type")
+		if recordType == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		rating, err := h.ctrl.GetAggregatedRating(r.Context(), model.RecordType(recordType), model.RecordID(id))
 		if err != nil {
 			if errors.Is(err, controller.ErrNotFound) {
@@ -48,6 +47,18 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(rating)
 
 	} else if r.Method == http.MethodPut {
+		id := r.FormValue("id")
+		if id == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		recordType := r.FormValue("type")
+		if recordType == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		userID := model.UserID(r.FormValue("userId"))
 		v, err := strconv.ParseFloat(r.FormValue("value"), 64)
 		if err != nil {

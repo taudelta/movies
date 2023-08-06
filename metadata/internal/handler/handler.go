@@ -26,8 +26,9 @@ func (h *Handler) GetMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.FormValue("id")
+	id := r.URL.Query().Get("id")
 	if id == "" {
+		log.Println("request error: empty metadata id")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
