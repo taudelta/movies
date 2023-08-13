@@ -4,14 +4,19 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
+	"movix/api/gen"
 	"movix/metadata/internal/config"
 	"movix/metadata/internal/controller"
 	"movix/metadata/internal/handler"
+	grpchandler "movix/metadata/internal/handler/grpc"
 	"movix/metadata/internal/repository/memory"
 	"movix/pkg/discovery"
 	"movix/pkg/discovery/consul"
@@ -19,7 +24,7 @@ import (
 
 const serviceName = "metadata"
 
-func Start(version, gitCommit string) {
+func Start(version, gitCommit string, grpcEnabled bool) error {
 	var cfg config.Config
 	if err := envconfig.Process("", &cfg); err != nil {
 		log.Panic(err)
@@ -59,13 +64,34 @@ func Start(version, gitCommit string) {
 
 	repo := memory.New()
 	ctrl := controller.New(repo)
-	handler := handler.NewHandler(ctrl)
 
-	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(fmt.Sprintf("metadata microservice: %s, commit: %s", version, gitCommit)))
-	})
+	if grpcEnabled {
+		l, err := net.Listen("tcp", cfg.AppAddr)
+		if err != nil {
+			return err
+		}
 
-	http.HandleFunc("/metadata", handler.GetMetadata)
+		handler := grpchandler.New(ctrl)
 
-	http.ListenAndServe(cfg.AppAddr, nil)
+		srv := grpc.NewServer()
+		reflection.Register(srv)
+
+		gen.RegisterMetadataServiceServer(srv, handler)
+
+		if err := srv.Serve(l); err != nil {
+			return err
+		}
+	} else {
+		handler := handler.NewHandler(ctrl)
+
+		http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(fmt.Sprintf("metadata microservice: %s, commit: %s", version, gitCommit)))
+		})
+
+		http.HandleFunc("/metadata", handler.GetMetadata)
+
+		http.ListenAndServe(cfg.AppAddr, nil)
+	}
+
+	return nil
 }

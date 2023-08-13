@@ -21,7 +21,7 @@ type Controller struct {
 type ratingGateway interface {
 	GetAggregatedRating(ctx context.Context, recordID ratingmodel.RecordID, recordType ratingmodel.RecordType) (float64, error)
 	PutRating(ctx context.Context, recordID ratingmodel.
-		RecordID, recordType ratingmodel.RecordType, rating *ratingmodel.Rating) error
+		RecordID, recordType ratingmodel.RecordType, userID ratingmodel.UserID, ratingValue ratingmodel.RatingValue) error
 }
 
 type metadataGateway interface {

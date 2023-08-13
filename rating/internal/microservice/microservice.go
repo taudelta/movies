@@ -4,22 +4,27 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
+	"movix/api/gen"
 	"movix/pkg/discovery"
 	"movix/pkg/discovery/consul"
 	"movix/rating/internal/config"
 	"movix/rating/internal/controller"
 	"movix/rating/internal/handler"
+	grpchandler "movix/rating/internal/handler/grpc"
 	"movix/rating/internal/repository/memory"
 )
 
 const serviceName = "rating"
 
-func Start(version, gitCommit string) {
+func Start(version, gitCommit string, grpcEnabled bool) error {
 	var cfg config.Config
 	if err := envconfig.Process("", &cfg); err != nil {
 		log.Panic(err)
@@ -60,13 +65,34 @@ func Start(version, gitCommit string) {
 
 	repo := memory.New()
 	ctrl := controller.New(repo)
-	handler := handler.NewHandler(ctrl)
 
-	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(fmt.Sprintf("rating microservice: %s, commit: %s", version, gitCommit)))
-	})
+	if grpcEnabled {
+		l, err := net.Listen("tcp", cfg.AppAddr)
+		if err != nil {
+			return err
+		}
 
-	http.HandleFunc("/rating", handler.Handle)
+		handler := grpchandler.New(ctrl)
 
-	http.ListenAndServe(cfg.AppAddr, nil)
+		srv := grpc.NewServer()
+		reflection.Register(srv)
+
+		gen.RegisterRatingServiceServer(srv, handler)
+
+		if err := srv.Serve(l); err != nil {
+			return err
+		}
+	} else {
+		handler := handler.NewHandler(ctrl)
+
+		http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(fmt.Sprintf("rating microservice: %s, commit: %s", version, gitCommit)))
+		})
+
+		http.HandleFunc("/rating", handler.Handle)
+
+		http.ListenAndServe(cfg.AppAddr, nil)
+	}
+
+	return nil
 }

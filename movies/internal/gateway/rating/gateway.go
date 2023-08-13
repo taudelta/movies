@@ -78,7 +78,7 @@ func (g *Gateway) GetAggregatedRating(ctx context.Context, recordID model.Record
 	return v, nil
 }
 
-func (g *Gateway) PutRating(ctx context.Context, recordID model.RecordID, recordType model.RecordType, rating *model.Rating) error {
+func (g *Gateway) PutRating(ctx context.Context, recordID model.RecordID, recordType model.RecordType, userID model.UserID, ratingValue model.RatingValue) error {
 	var addrs []string
 	var err error
 
@@ -103,8 +103,8 @@ func (g *Gateway) PutRating(ctx context.Context, recordID model.RecordID, record
 
 	values.Set("id", string(recordID))
 	values.Set("type", fmt.Sprintf("%v", recordType))
-	values.Set("value", fmt.Sprintf("%v", rating.Value))
-	values.Set("userID", string(rating.UserID))
+	values.Set("value", fmt.Sprintf("%v", ratingValue))
+	values.Set("userID", string(userID))
 
 	req.URL.RawQuery = values.Encode()
 
